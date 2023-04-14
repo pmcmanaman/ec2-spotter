@@ -33,7 +33,7 @@ SNAPSHOT_ID=$(aws ec2 describe-images --image-id $IMAGE_ID |jq -r '.Images[0].Bl
 aws ec2 create-tags --resources $IMAGE_ID $SNAPSHOT_ID --tags Key=Name,Value=$NAME
 
 REGION=$($MetaCall/placement/availability-zone | sed -e 's/.$//')
-KEY_NAME=$(wget -q -O - http://169.254.169.254/latest/meta-data/public-keys | awk -F= '{print $2}')
+KEY_NAME=$(wget --header="X-aws-ec2-metadata-token: $TOKEN" -q -O - http://169.254.169.254/latest/meta-data/public-keys | awk -F= '{print $2}')
 
 # Setup the script that runs in the spot instance. It is responsible for cleaning up the temporary objects created during launch.
 cat >user-data.tmp <<EOF
