@@ -9,6 +9,7 @@ then
 fi
 
 PATH=/usr/local/bin/:$PATH
+TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
 
 cd $(dirname $0)
 CONF=$(hostname -s).conf
@@ -19,7 +20,7 @@ CONF=$(hostname -s).conf
 #
 
 ipOwner=$(aws ec2 describe-addresses --allocation-ids $ec2spotter_elastic_ip | jq -r '.Addresses[0].InstanceId') &&
-self=$(curl -s http://169.254.169.254/latest/meta-data/instance-id) &&
+self=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s http://169.254.169.254/latest/meta-data/instance-id) &&
 
 if [ "$ipOwner" = "null" ] || [ "$ipOwner" = "" ]
 then
