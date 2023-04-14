@@ -3,11 +3,12 @@
 TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
 MetaCall=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s http://169.254.169.254/latest/meta-data)
 
-SELF_ID=$($MetaCall/instance-id)
-INSTANCE_TYPE=$($MetaCall/instance-type)
-SECGRP_NAME=$($MetaCall/security-groups/)
+SELF_ID=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s http://169.254.169.254/latest/meta-data/instance-id)
+INSTANCE_TYPE=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s http://169.254.169.254/latest/meta-data/instance-type)
+SECGRP_NAME=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s http://169.254.169.254/latest/meta-data/security-groups/)
 SECGRP_ID=$(aws ec2 describe-security-groups --group-names $SECGRP_NAME | jq -r '.SecurityGroups[0].GroupId')
-SUBNET_ID=$($MetaCall/network/interfaces/macs/$($MetaCall/mac)/subnet-id)
+MAC_ID=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s http://169.254.169.254/latest/meta-data/mac)
+SUBNET_ID=$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s http://169.254.169.254/latest/meta-data/network/interfaces/macs/$MAC_ID/subnet-id)
 NAME=$(hostname -s)
 HOSTNAME=$(hostname)
 
@@ -38,7 +39,8 @@ KEY_NAME=$(wget --header="X-aws-ec2-metadata-token: $TOKEN" -q -O - http://169.2
 # Setup the script that runs in the spot instance. It is responsible for cleaning up the temporary objects created during launch.
 cat >user-data.tmp <<EOF
 #!/bin/sh
-my_id=\$($MetaCall/instance-id)
+TOKEN=$(curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+my_id=\$(curl -H "X-aws-ec2-metadata-token: $TOKEN" -s http://169.254.169.254/latest/meta-data/instance-id)
 my_root_vol_id=\$(aws ec2 describe-instances --instance-id \$my_id | jq -r '.Reservations[0].Instances[0].BlockDeviceMappings[0].Ebs.VolumeId')
 
 crontab -l > /root/saved-crontab
@@ -58,4 +60,3 @@ aws ec2 create-tags --resources $NEW_INSTANCE_ID --tags Key=Name,Value="$NAME(cl
 aws ec2 create-tags --resources $NEW_INSTANCE_ID --tags Key=hostname,Value=$HOSTNAME --region $REGION
 
 echo "Instance launched: $NEW_INSTANCE_ID"
-
